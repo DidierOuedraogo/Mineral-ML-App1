@@ -391,44 +391,53 @@ with tab1:
         with col2:
             st.markdown("### Paramètres du Modèle")
             
+            # Initialisation des variables par défaut
+            n_estimators_classif = 200
+            max_depth_classif = 15
+            min_samples_classif = 5
+            C_classif = 1.0
+            kernel_classif = 'rbf'
+            learning_rate_classif = 0.1
+            max_iter_classif = 100
+            
             if classif_algo == "Random Forest":
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    n_estimators = st.number_input("n_estimators", 10, 1000, 200, 10)
+                    n_estimators_classif = st.number_input("n_estimators", 10, 1000, 200, 10, key="rf_classif_n")
                     st.caption("Plus d'arbres = meilleure performance mais calcul plus lent")
                 with col_b:
-                    max_depth = st.number_input("max_depth", 3, 50, 15)
+                    max_depth_classif = st.number_input("max_depth", 3, 50, 15, key="rf_classif_depth")
                     st.caption("Profondeur maximale. Trop élevé = surapprentissage")
-                min_samples = st.number_input("min_samples_split", 2, 20, 5)
+                min_samples_classif = st.number_input("min_samples_split", 2, 20, 5, key="rf_classif_min")
                 st.caption("Nombre minimum pour diviser un noeud")
                 
             elif classif_algo == "SVM":
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    C = st.number_input("C (Régularisation)", 0.01, 100.0, 1.0, 0.1)
+                    C_classif = st.number_input("C (Régularisation)", 0.01, 100.0, 1.0, 0.1, key="svm_c")
                     st.caption("Compromis entre marge maximale et erreurs")
                 with col_b:
-                    kernel = st.selectbox("kernel", ["rbf", "linear", "poly"])
+                    kernel_classif = st.selectbox("kernel", ["rbf", "linear", "poly"], key="svm_kernel")
                     st.caption("RBF: données non-linéaires")
                     
             elif classif_algo == "XGBoost":
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    n_estimators = st.number_input("n_estimators", 10, 1000, 100, 10)
+                    n_estimators_classif = st.number_input("n_estimators", 10, 1000, 100, 10, key="xgb_classif_n")
                     st.caption("Nombre d'arbres de boosting")
                 with col_b:
-                    learning_rate = st.number_input("learning_rate", 0.01, 1.0, 0.1, 0.01)
+                    learning_rate_classif = st.number_input("learning_rate", 0.01, 1.0, 0.1, 0.01, key="xgb_classif_lr")
                     st.caption("Contribution de chaque arbre")
-                max_depth = st.number_input("max_depth", 3, 20, 6)
+                max_depth_classif = st.number_input("max_depth", 3, 20, 6, key="xgb_classif_depth")
                 st.caption("Profondeur max des arbres")
                 
             else:  # Logistic Regression
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    C = st.number_input("C (Inverse régularisation)", 0.001, 100.0, 1.0, 0.1)
+                    C_classif = st.number_input("C (Inverse régularisation)", 0.001, 100.0, 1.0, 0.1, key="lr_classif_c")
                     st.caption("Plus petit C = régularisation plus forte")
                 with col_b:
-                    max_iter = st.number_input("max_iter", 50, 1000, 100)
+                    max_iter_classif = st.number_input("max_iter", 50, 1000, 100, key="lr_classif_iter")
                     st.caption("Nombre max d'itérations")
         
         # ÉTAPE 3: Entraînement et résultats
@@ -454,9 +463,9 @@ with tab1:
                 # Entraînement du modèle
                 if classif_algo == "Random Forest":
                     model = RandomForestClassifier(
-                        n_estimators=n_estimators,
-                        max_depth=max_depth,
-                        min_samples_split=min_samples,
+                        n_estimators=n_estimators_classif,
+                        max_depth=max_depth_classif,
+                        min_samples_split=min_samples_classif,
                         class_weight='balanced',
                         random_state=42
                     )
@@ -464,31 +473,31 @@ with tab1:
                     y_pred = model.predict(X_test)
                     
                 elif classif_algo == "SVM":
-                    model = SVC(C=C, kernel=kernel, class_weight='balanced', random_state=42)
+                    model = SVC(C=C_classif, kernel=kernel_classif, class_weight='balanced', random_state=42)
                     model.fit(X_train_scaled, y_train)
                     y_pred = model.predict(X_test_scaled)
                     
                 elif classif_algo == "XGBoost":
                     from xgboost import XGBClassifier
                     model = XGBClassifier(
-                        n_estimators=n_estimators,
-                        learning_rate=learning_rate,
-                        max_depth=max_depth,
+                        n_estimators=n_estimators_classif,
+                        learning_rate=learning_rate_classif,
+                        max_depth=max_depth_classif,
                         random_state=42
                     )
                     model.fit(X_train, y_train)
                     y_pred = model.predict(X_test)
                     
                 else:  # Logistic Regression
-                    model = LogisticRegression(C=C, max_iter=max_iter, class_weight='balanced', random_state=42)
+                    model = LogisticRegression(C=C_classif, max_iter=max_iter_classif, class_weight='balanced', random_state=42)
                     model.fit(X_train_scaled, y_train)
                     y_pred = model.predict(X_test_scaled)
                 
                 # Calcul des métriques
                 accuracy = accuracy_score(y_test, y_pred)
-                precision = precision_score(y_test, y_pred)
-                recall = recall_score(y_test, y_pred)
-                f1 = f1_score(y_test, y_pred)
+                precision = precision_score(y_test, y_pred, zero_division=0)
+                recall = recall_score(y_test, y_pred, zero_division=0)
+                f1 = f1_score(y_test, y_pred, zero_division=0)
                 cm = confusion_matrix(y_test, y_pred)
                 
                 # Affichage des résultats
@@ -552,10 +561,10 @@ with tab1:
                 st.markdown("### 💻 Code Python Équivalent")
                 
                 code_map = {
-                    "Random Forest": f"RandomForestClassifier(n_estimators={n_estimators}, max_depth={max_depth}, min_samples_split={min_samples})",
-                    "SVM": f"SVC(C={C}, kernel='{kernel}')",
-                    "XGBoost": f"XGBClassifier(n_estimators={n_estimators}, learning_rate={learning_rate}, max_depth={max_depth})",
-                    "Logistic Regression": f"LogisticRegression(C={C}, max_iter={max_iter})"
+                    "Random Forest": f"RandomForestClassifier(n_estimators={n_estimators_classif}, max_depth={max_depth_classif}, min_samples_split={min_samples_classif})",
+                    "SVM": f"SVC(C={C_classif}, kernel='{kernel_classif}')",
+                    "XGBoost": f"XGBClassifier(n_estimators={n_estimators_classif}, learning_rate={learning_rate_classif}, max_depth={max_depth_classif})",
+                    "Logistic Regression": f"LogisticRegression(C={C_classif}, max_iter={max_iter_classif})"
                 }
                 
                 code = f"""
@@ -713,6 +722,13 @@ with tab2:
         with col2:
             st.markdown("### Paramètres du Modèle")
             
+            # Valeurs par défaut
+            n_estimators_reg = 200
+            max_depth_reg = 12
+            min_samples_reg = 2
+            learning_rate_reg = 0.05
+            fit_intercept = True
+            
             if reg_algo == "Random Forest":
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -789,7 +805,7 @@ with tab2:
                 r2 = r2_score(y_test, y_pred)
                 mae = mean_absolute_error(y_test, y_pred)
                 rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-                mape = np.mean(np.abs((y_test - y_pred) / y_test)) * 100
+                mape = np.mean(np.abs((y_test - y_pred) / (y_test + 1e-10))) * 100
                 
                 # Affichage des résultats
                 st.markdown("### 🎯 Métriques de Performance")
@@ -1016,6 +1032,14 @@ with tab3:
         with col2:
             st.markdown("### Paramètres du Modèle")
             
+            # Valeurs par défaut
+            n_estimators_optim = 300
+            max_depth_optim = 12
+            learning_rate_optim = 0.1
+            hidden_layers = "100,50"
+            learning_rate_mlp = 0.001
+            max_iter_mlp = 500
+            
             if optim_algo == "Random Forest":
                 col_a, col_b = st.columns(2)
                 with col_a:
@@ -1096,18 +1120,16 @@ with tab3:
                 # Calcul des métriques
                 r2 = r2_score(y_test, y_pred)
                 
-                # Trouver les paramètres optimaux (via prédiction sur grille)
+                # Trouver les paramètres optimaux
                 from scipy.optimize import differential_evolution
                 
                 def objective(params):
-                    # Transformation des params
                     if optim_algo == "Neural Network":
                         params_scaled = scaler.transform([params])
                         return -model.predict(params_scaled)[0]
                     else:
                         return -model.predict([params])[0]
                 
-                # Bornes pour l'optimisation
                 bounds = [
                     (9.5, 11.5),   # pH
                     (200, 1000),   # CN
@@ -1167,15 +1189,13 @@ with tab3:
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # Graphique de surface 3D pour pH vs CN vs Recovery
+                # Graphique de surface 3D
                 st.markdown("### 📊 Surface de Réponse: pH vs CN")
                 
-                # Créer une grille pour pH et CN
                 pH_range = np.linspace(9.5, 11.5, 30)
                 CN_range = np.linspace(200, 1000, 30)
                 pH_grid, CN_grid = np.meshgrid(pH_range, CN_range)
                 
-                # Fixer les autres paramètres à leurs valeurs optimales
                 recovery_grid = np.zeros_like(pH_grid)
                 for i in range(pH_grid.shape[0]):
                     for j in range(pH_grid.shape[1]):
@@ -1212,37 +1232,6 @@ with tab3:
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-                
-                # Code Python équivalent
-                st.markdown("### 💻 Code Python Équivalent")
-                
-                if optim_algo == "Random Forest":
-                    params = f"n_estimators={n_estimators_optim}, max_depth={max_depth_optim}"
-                    model_name = "RandomForestRegressor"
-                elif optim_algo == "Gradient Boosting":
-                    params = f"n_estimators={n_estimators_optim}, learning_rate={learning_rate_optim}"
-                    model_name = "GradientBoostingRegressor"
-                else:
-                    params = f"hidden_layer_sizes={hidden_layers}, learning_rate_init={learning_rate_mlp}, max_iter={max_iter_mlp}"
-                    model_name = "MLPRegressor"
-                
-                code = f"""
-from sklearn.ensemble import {model_name}
-from scipy.optimize import differential_evolution
-
-model = {model_name}({params})
-model.fit(X_train, y_train)
-
-def objective(params):
-    return -model.predict([params])[0]
-
-bounds = [(9.5, 11.5), (200, 1000), (12, 48), (20, 50), (35, 50), (4, 10), (50, 150)]
-result = differential_evolution(objective, bounds)
-
-print(f"Récupération optimale: {optimal_recovery:.2f}%")
-print(f"Paramètres: pH={optimal_params[0]:.2f}, CN={optimal_params[1]:.0f}")
-"""
-                st.code(code, language="python")
 
 # ======================= ONGLET 4: MAINTENANCE ======================= #
 with tab4:
@@ -1290,7 +1279,7 @@ with tab4:
                     'Vitesse_RPM': round(vitesse, 0),
                     'Bruit_dB': round(bruit, 1),
                     'Heures_fonct': round(heures, 0),
-                    'Etat': 1  # Panne
+                    'Etat': 1
                 })
             
             # Données normales
@@ -1311,7 +1300,7 @@ with tab4:
                     'Vitesse_RPM': round(vitesse, 0),
                     'Bruit_dB': round(bruit, 1),
                     'Heures_fonct': round(heures, 0),
-                    'Etat': 0  # Normal
+                    'Etat': 0
                 })
             
             df = pd.DataFrame(data)
@@ -1347,12 +1336,10 @@ with tab4:
         col2.metric("Pannes", pannes)
         col3.metric("Normal", normal)
         
-        # Afficher avec labels textuels
         df_display = st.session_state.maint_data.copy()
         df_display['Etat_Text'] = df_display['Etat'].map({0: 'Normal', 1: 'Panne'})
         st.dataframe(df_display.head(10), use_container_width=True)
         
-        # Téléchargement
         csv = download_data(st.session_state.maint_data, "maintenance_predictive.csv")
         st.download_button(
             label="📥 Télécharger CSV",
@@ -1384,6 +1371,14 @@ with tab4:
         
         with col2:
             st.markdown("### Paramètres du Modèle")
+            
+            # Valeurs par défaut
+            n_estimators_maint = 200
+            max_depth_maint = 15
+            class_weight = 'balanced'
+            learning_rate_maint = 0.1
+            scale_pos_weight = 5
+            C_maint = 1.0
             
             if maint_algo == "Random Forest":
                 col_a, col_b = st.columns(2)
@@ -1423,7 +1418,6 @@ with tab4:
             with st.spinner("⏳ Entraînement en cours..."):
                 df = st.session_state.maint_data
                 
-                # Préparation des données
                 X = df.drop('Etat', axis=1)
                 y = df['Etat']
                 
@@ -1431,12 +1425,10 @@ with tab4:
                     X, y, test_size=0.2, stratify=y, random_state=42
                 )
                 
-                # Standardisation
                 scaler = StandardScaler()
                 X_train_scaled = scaler.fit_transform(X_train)
                 X_test_scaled = scaler.transform(X_test)
                 
-                # Entraînement du modèle
                 if maint_algo == "Random Forest":
                     cw = 'balanced' if class_weight == 'balanced' else None
                     model = RandomForestClassifier(
@@ -1459,20 +1451,18 @@ with tab4:
                     model.fit(X_train, y_train)
                     y_pred = model.predict(X_test)
                     
-                else:  # Logistic Regression
+                else:
                     cw = 'balanced' if class_weight == 'balanced' else None
                     model = LogisticRegression(C=C_maint, class_weight=cw, max_iter=1000, random_state=42)
                     model.fit(X_train_scaled, y_train)
                     y_pred = model.predict(X_test_scaled)
                 
-                # Calcul des métriques
                 accuracy = accuracy_score(y_test, y_pred)
-                precision = precision_score(y_test, y_pred)
-                recall = recall_score(y_test, y_pred)
-                f1 = f1_score(y_test, y_pred)
+                precision = precision_score(y_test, y_pred, zero_division=0)
+                recall = recall_score(y_test, y_pred, zero_division=0)
+                f1 = f1_score(y_test, y_pred, zero_division=0)
                 cm = confusion_matrix(y_test, y_pred)
                 
-                # Affichage des résultats
                 st.markdown("### 🎯 Métriques de Performance")
                 
                 col1, col2, col3, col4 = st.columns(4)
@@ -1481,7 +1471,6 @@ with tab4:
                 col3.metric("Precision", f"{precision:.3f}", "Fiabilité alertes")
                 col4.metric("F1-Score", f"{f1:.3f}", "Score équilibré")
                 
-                # Interprétation
                 st.markdown(f"""
                 <div class="warning-box">
                     <strong>⚠️ Interprétation:</strong><br>
@@ -1491,7 +1480,6 @@ with tab4:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Matrice de confusion
                 st.markdown("### 📊 Matrice de Confusion")
                 
                 fig = go.Figure(data=go.Heatmap(
@@ -1511,7 +1499,6 @@ with tab4:
                 )
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Importance des features
                 if maint_algo in ["Random Forest", "XGBoost"]:
                     st.markdown("### 📊 Importance des Signaux Capteurs")
                     
@@ -1519,17 +1506,6 @@ with tab4:
                         'Signal': X.columns,
                         'Importance': model.feature_importances_
                     }).sort_values('Importance', ascending=True)
-                    
-                    # Ajouter interprétation
-                    interpretations = {
-                        'Vibration_mm_s': 'Indicateur principal usure',
-                        'Temperature_C': 'Surchauffe roulements',
-                        'Heures_fonct': 'Fatigue matériaux',
-                        'Courant_A': 'Charge anormale',
-                        'Pression_huile_bar': 'Problème lubrification',
-                        'Vitesse_RPM': 'Désalignement',
-                        'Bruit_dB': 'Anomalie acoustique'
-                    }
                     
                     fig = px.bar(
                         feature_importance,
@@ -1539,42 +1515,6 @@ with tab4:
                         title="Importance Relative des Signaux"
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Tableau d'interprétation
-                    st.markdown("### 🔍 Interprétation des Signaux")
-                    
-                    interp_df = feature_importance.copy()
-                    interp_df['Interprétation'] = interp_df['Signal'].map(interpretations)
-                    st.dataframe(interp_df[['Signal', 'Importance', 'Interprétation']], use_container_width=True)
-                
-                # Code Python équivalent
-                st.markdown("### 💻 Code Python Équivalent")
-                
-                if maint_algo == "Random Forest":
-                    cw_str = "'balanced'" if class_weight == 'balanced' else "None"
-                    params = f"n_estimators={n_estimators_maint}, max_depth={max_depth_maint}, class_weight={cw_str}"
-                    model_name = "RandomForestClassifier"
-                elif maint_algo == "XGBoost":
-                    params = f"n_estimators={n_estimators_maint}, learning_rate={learning_rate_maint}, scale_pos_weight={scale_pos_weight}"
-                    model_name = "XGBClassifier"
-                else:
-                    cw_str = "'balanced'" if class_weight == 'balanced' else "None"
-                    params = f"C={C_maint}, class_weight={cw_str}"
-                    model_name = "LogisticRegression"
-                
-                code = f"""
-from sklearn.ensemble import {model_name}
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y)
-
-model = {model_name}({params})
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-
-print(f"Recall: {recall:.3f}")
-print(f"Accuracy: {accuracy:.3f}")
-"""
-                st.code(code, language="python")
 
 # Footer
 st.markdown("""
