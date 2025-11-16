@@ -12,6 +12,7 @@ from sklearn.metrics import (
     confusion_matrix, r2_score, mean_absolute_error, mean_squared_error
 )
 from sklearn.preprocessing import StandardScaler
+from scipy.optimize import minimize
 import io
 
 # Configuration de la page
@@ -94,10 +95,11 @@ if not st.session_state.logged_in:
         
         st.markdown("---")
         st.info("""
-        **📋 Comptes de test disponibles:**
+        **📋 Information:**
         
-        - **Compte 1:** Didier / Gloria
-        - **Compte 2:** student / E3MG25
+        Contactez l'auteur pour obtenir vos identifiants d'accès.
+        
+        **Contact:** Didier Ouedraogo, P.Geo
         """)
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -261,7 +263,6 @@ with tab1:
         classif_noise = st.slider("Bruit dans les données (%)", 0, 50, 10, 5)
         
         if st.button("🎲 Générer les Données", key="gen_classif"):
-            # Génération des données
             n_refract = int(classif_samples * classif_prop / 100)
             n_non_refract = classif_samples - n_refract
             noise_factor = classif_noise / 100
@@ -358,7 +359,6 @@ with tab1:
         
         st.dataframe(st.session_state.classif_data.head(10), use_container_width=True)
         
-        # Téléchargement
         csv = download_data(st.session_state.classif_data, "classification_minerai.csv")
         st.download_button(
             label="📥 Télécharger CSV",
@@ -391,7 +391,6 @@ with tab1:
         with col2:
             st.markdown("### Paramètres du Modèle")
             
-            # Initialisation des variables par défaut
             n_estimators_classif = 200
             max_depth_classif = 15
             min_samples_classif = 5
@@ -431,7 +430,7 @@ with tab1:
                 max_depth_classif = st.number_input("max_depth", 3, 20, 6, key="xgb_classif_depth")
                 st.caption("Profondeur max des arbres")
                 
-            else:  # Logistic Regression
+            else:
                 col_a, col_b = st.columns(2)
                 with col_a:
                     C_classif = st.number_input("C (Inverse régularisation)", 0.001, 100.0, 1.0, 0.1, key="lr_classif_c")
@@ -447,7 +446,6 @@ with tab1:
             with st.spinner("⏳ Entraînement en cours..."):
                 df = st.session_state.classif_data
                 
-                # Préparation des données
                 X = df.drop('Classe', axis=1)
                 y = df['Classe'].map({'Réfractaire': 1, 'Non-Réfractaire': 0})
                 
@@ -455,12 +453,10 @@ with tab1:
                     X, y, test_size=0.2, stratify=y, random_state=42
                 )
                 
-                # Standardisation
                 scaler = StandardScaler()
                 X_train_scaled = scaler.fit_transform(X_train)
                 X_test_scaled = scaler.transform(X_test)
                 
-                # Entraînement du modèle
                 if classif_algo == "Random Forest":
                     model = RandomForestClassifier(
                         n_estimators=n_estimators_classif,
@@ -488,19 +484,17 @@ with tab1:
                     model.fit(X_train, y_train)
                     y_pred = model.predict(X_test)
                     
-                else:  # Logistic Regression
+                else:
                     model = LogisticRegression(C=C_classif, max_iter=max_iter_classif, class_weight='balanced', random_state=42)
                     model.fit(X_train_scaled, y_train)
                     y_pred = model.predict(X_test_scaled)
                 
-                # Calcul des métriques
                 accuracy = accuracy_score(y_test, y_pred)
                 precision = precision_score(y_test, y_pred, zero_division=0)
                 recall = recall_score(y_test, y_pred, zero_division=0)
                 f1 = f1_score(y_test, y_pred, zero_division=0)
                 cm = confusion_matrix(y_test, y_pred)
                 
-                # Affichage des résultats
                 st.markdown("### 🎯 Métriques de Performance")
                 
                 col1, col2, col3, col4 = st.columns(4)
@@ -509,7 +503,6 @@ with tab1:
                 col3.metric("Recall", f"{recall:.3f}", "Vrais + / Réels +")
                 col4.metric("F1-Score", f"{f1:.3f}", "Moyenne P & R")
                 
-                # Matrice de confusion
                 st.markdown("### 📊 Matrice de Confusion")
                 
                 fig = go.Figure(data=go.Heatmap(
@@ -529,7 +522,6 @@ with tab1:
                 )
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Interprétation
                 st.markdown(f"""
                 <div class="info-box">
                     <strong>💡 Interprétation:</strong><br>
@@ -539,7 +531,6 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Importance des features (pour Random Forest et XGBoost)
                 if classif_algo in ["Random Forest", "XGBoost"]:
                     st.markdown("### 📊 Importance des Variables")
                     
@@ -556,34 +547,6 @@ with tab1:
                         title="Importance des Variables dans la Classification"
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                
-                # Code Python équivalent
-                st.markdown("### 💻 Code Python Équivalent")
-                
-                code_map = {
-                    "Random Forest": f"RandomForestClassifier(n_estimators={n_estimators_classif}, max_depth={max_depth_classif}, min_samples_split={min_samples_classif})",
-                    "SVM": f"SVC(C={C_classif}, kernel='{kernel_classif}')",
-                    "XGBoost": f"XGBClassifier(n_estimators={n_estimators_classif}, learning_rate={learning_rate_classif}, max_depth={max_depth_classif})",
-                    "Logistic Regression": f"LogisticRegression(C={C_classif}, max_iter={max_iter_classif})"
-                }
-                
-                code = f"""
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, stratify=y, random_state=42
-)
-
-model = {code_map[classif_algo]}
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-
-print(f"Accuracy: {accuracy:.3f}")
-print(f"F1-Score: {f1:.3f}")
-"""
-                st.code(code, language="python")
 
 # ======================= ONGLET 2: RÉGRESSION ======================= #
 with tab2:
@@ -597,7 +560,6 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
     
-    # ÉTAPE 1: Génération des données
     st.markdown('<div class="step-header">📊 Étape 1: Génération des Données</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns([1, 1])
@@ -625,7 +587,6 @@ with tab2:
                 profondeur = np.random.random() * 300 + 50
                 alteration = np.random.random() * 10
                 
-                # Modèle de teneur avec relations complexes
                 teneur = (
                     0.5 +
                     (As / 100) * 0.3 * c_factor +
@@ -665,7 +626,6 @@ with tab2:
         ➜ **Variable cible:** Teneur Au (g/t)
         """)
     
-    # Affichage des données générées
     if st.session_state.reg_data is not None:
         st.markdown("### 📊 Aperçu des Données Générées")
         
@@ -680,7 +640,6 @@ with tab2:
         
         st.dataframe(st.session_state.reg_data.head(10), use_container_width=True)
         
-        # Téléchargement
         csv = download_data(st.session_state.reg_data, "regression_teneurs.csv")
         st.download_button(
             label="📥 Télécharger CSV",
@@ -690,7 +649,6 @@ with tab2:
             key="download_reg"
         )
         
-        # Visualisation de la distribution
         fig = px.histogram(
             st.session_state.reg_data,
             x='Teneur_Au_g_t',
@@ -699,7 +657,6 @@ with tab2:
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    # ÉTAPE 2: Configuration du modèle
     if st.session_state.reg_data is not None:
         st.markdown('<div class="step-header">⚙️ Étape 2: Configuration du Modèle</div>', unsafe_allow_html=True)
         
@@ -722,7 +679,6 @@ with tab2:
         with col2:
             st.markdown("### Paramètres du Modèle")
             
-            # Valeurs par défaut
             n_estimators_reg = 200
             max_depth_reg = 12
             min_samples_reg = 2
@@ -733,36 +689,27 @@ with tab2:
                 col_a, col_b = st.columns(2)
                 with col_a:
                     n_estimators_reg = st.number_input("n_estimators", 10, 1000, 200, 10, key="rf_reg_n")
-                    st.caption("Nombre d'arbres. Plus = prédictions stables")
                 with col_b:
                     max_depth_reg = st.number_input("max_depth", 3, 50, 12, key="rf_reg_depth")
-                    st.caption("Profondeur maximale")
                 min_samples_reg = st.number_input("min_samples_leaf", 1, 20, 2, key="rf_reg_samples")
-                st.caption("Minimum d'échantillons dans feuille")
                 
             elif reg_algo == "Gradient Boosting":
                 col_a, col_b = st.columns(2)
                 with col_a:
                     n_estimators_reg = st.number_input("n_estimators", 10, 1000, 300, 10, key="gb_reg_n")
-                    st.caption("Nombre d'étapes de boosting")
                 with col_b:
                     learning_rate_reg = st.number_input("learning_rate", 0.001, 1.0, 0.05, 0.01, key="gb_reg_lr")
-                    st.caption("Pondération de chaque arbre")
                 max_depth_reg = st.number_input("max_depth", 3, 20, 8, key="gb_reg_depth")
-                st.caption("Profondeur des arbres")
                 
-            else:  # Linear Regression
+            else:
                 fit_intercept = st.checkbox("fit_intercept", value=True, key="lr_intercept")
-                st.caption("Calculer l'ordonnée à l'origine")
         
-        # ÉTAPE 3: Entraînement et résultats
         st.markdown('<div class="step-header">📊 Étape 3: Résultats et Métriques</div>', unsafe_allow_html=True)
         
         if st.button("▶ Entraîner le Modèle", key="train_reg"):
             with st.spinner("⏳ Entraînement en cours..."):
                 df = st.session_state.reg_data
                 
-                # Préparation des données
                 X = df.drop('Teneur_Au_g_t', axis=1)
                 y = df['Teneur_Au_g_t']
                 
@@ -770,12 +717,10 @@ with tab2:
                     X, y, test_size=0.2, random_state=42
                 )
                 
-                # Standardisation
                 scaler = StandardScaler()
                 X_train_scaled = scaler.fit_transform(X_train)
                 X_test_scaled = scaler.transform(X_test)
                 
-                # Entraînement du modèle
                 if reg_algo == "Random Forest":
                     model = RandomForestRegressor(
                         n_estimators=n_estimators_reg,
@@ -796,18 +741,16 @@ with tab2:
                     model.fit(X_train, y_train)
                     y_pred = model.predict(X_test)
                     
-                else:  # Linear Regression
+                else:
                     model = LinearRegression(fit_intercept=fit_intercept)
                     model.fit(X_train_scaled, y_train)
                     y_pred = model.predict(X_test_scaled)
                 
-                # Calcul des métriques
                 r2 = r2_score(y_test, y_pred)
                 mae = mean_absolute_error(y_test, y_pred)
                 rmse = np.sqrt(mean_squared_error(y_test, y_pred))
                 mape = np.mean(np.abs((y_test - y_pred) / (y_test + 1e-10))) * 100
                 
-                # Affichage des résultats
                 st.markdown("### 🎯 Métriques de Performance")
                 
                 col1, col2, col3, col4 = st.columns(4)
@@ -816,7 +759,6 @@ with tab2:
                 col3.metric("RMSE", f"{rmse:.3f} g/t", "Erreur quadratique")
                 col4.metric("MAPE", f"{mape:.1f}%", "Erreur % moyenne")
                 
-                # Interprétation
                 st.markdown(f"""
                 <div class="info-box">
                     <strong>💡 Interprétation:</strong><br>
@@ -826,7 +768,6 @@ with tab2:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Graphique Prédictions vs Réalité
                 st.markdown("### 📊 Prédictions vs Réalité")
                 
                 results_df = pd.DataFrame({
@@ -842,7 +783,6 @@ with tab2:
                     labels={'Réel': 'Teneur Réelle (g/t)', 'Prédit': 'Teneur Prédite (g/t)'}
                 )
                 
-                # Ligne parfaite
                 max_val = max(y_test.max(), y_pred.max())
                 fig.add_trace(go.Scatter(
                     x=[0, max_val],
@@ -854,7 +794,6 @@ with tab2:
                 
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Importance des features
                 if reg_algo in ["Random Forest", "Gradient Boosting"]:
                     st.markdown("### 📊 Importance des Variables")
                     
@@ -871,44 +810,561 @@ with tab2:
                         title="Importance des Variables dans la Prédiction"
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                
-                # Code Python équivalent
-                st.markdown("### 💻 Code Python Équivalent")
-                
-                if reg_algo == "Random Forest":
-                    params = f"n_estimators={n_estimators_reg}, max_depth={max_depth_reg}, min_samples_leaf={min_samples_reg}"
-                    model_name = "RandomForestRegressor"
-                elif reg_algo == "Gradient Boosting":
-                    params = f"n_estimators={n_estimators_reg}, learning_rate={learning_rate_reg}, max_depth={max_depth_reg}"
-                    model_name = "GradientBoostingRegressor"
-                else:
-                    params = f"fit_intercept={fit_intercept}"
-                    model_name = "LinearRegression"
-                
-                code = f"""
-from sklearn.ensemble import {model_name}
-from sklearn.metrics import r2_score, mean_absolute_error
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-
-model = {model_name}({params})
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
-
-print(f"R²: {r2:.3f}")
-print(f"MAE: {mae:.3f} g/t")
-"""
-                st.code(code, language="python")
-
-# ======================= ONGLET 3: OPTIMISATION (CODE RACCOURCI) ======================= #
+# ======================= ONGLET 3: OPTIMISATION ======================= #
 with tab3:
     st.markdown("## Optimisation du Process Métallurgique")
-    st.info("🚧 Fonctionnalité complète disponible dans la version locale")
+    
+    st.markdown("""
+    <div class="info-box">
+        <strong>🎯 Objectif:</strong><br>
+        Optimiser les paramètres opérationnels (pH, temps de lixiviation, cyanure) pour maximiser 
+        la récupération de l'or tout en minimisant les coûts de traitement.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="step-header">📊 Étape 1: Génération des Données de Process</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### Paramètres de Génération")
+        optim_samples = st.slider("Nombre d'essais", 100, 2000, 500, 50, key="optim_samples")
+        optim_noise = st.slider("Bruit dans les données (%)", 0, 30, 5, 5, key="optim_noise")
+        
+        if st.button("🎲 Générer les Données", key="gen_optim"):
+            noise_factor = optim_noise / 100
+            
+            data = []
+            for i in range(optim_samples):
+                pH = 10.0 + np.random.random() * 2.5
+                temps = 12 + np.random.random() * 36
+                cyanure = 200 + np.random.random() * 600
+                temperature = 20 + np.random.random() * 15
+                granulo_p80 = 50 + np.random.random() * 100
+                
+                recup = (
+                    65 +
+                    (pH - 10.5) * 8 -
+                    ((pH - 11.0) ** 2) * 3 +
+                    (temps / 48) * 15 -
+                    ((temps - 24) ** 2) / 100 +
+                    (cyanure / 800) * 10 -
+                    ((cyanure - 400) ** 2) / 5000 +
+                    (temperature / 35) * 5 -
+                    (granulo_p80 / 150) * 8 +
+                    (np.random.random() - 0.5) * noise_factor * 20
+                )
+                recup = max(50, min(98, recup))
+                
+                cout = (
+                    50 +
+                    (cyanure / 10) +
+                    (temps * 2) +
+                    (temperature - 20) * 3 +
+                    (np.random.random() - 0.5) * noise_factor * 30
+                )
+                cout = max(30, cout)
+                
+                data.append({
+                    'pH': round(pH, 2),
+                    'Temps_h': round(temps, 1),
+                    'Cyanure_ppm': round(cyanure, 0),
+                    'Temperature_C': round(temperature, 1),
+                    'Granulo_P80_um': round(granulo_p80, 0),
+                    'Recup_%': round(recup, 2),
+                    'Cout_$/t': round(cout, 2)
+                })
+            
+            df = pd.DataFrame(data)
+            st.session_state.optim_data = df
+            st.success(f"✅ {optim_samples} essais générés avec succès!")
+    
+    with col2:
+        st.markdown("### Variables d'Optimisation")
+        st.markdown("""
+        **Variables de contrôle:**
+        - 🔹 **pH** - Optimum 10.5-11.5 pour dissolution Au
+        - 🔹 **Temps lixiviation (h)** - Trade-off recup/coût
+        - 🔹 **Cyanure (ppm)** - Consommation vs efficacité
+        - 🔹 **Température (°C)** - Cinétique réaction
+        - 🔹 **Granulométrie P80 (μm)** - Libération Au
+        
+        **Objectifs:**
+        - ✅ Maximiser Récupération (%)
+        - ✅ Minimiser Coût ($/t)
+        """)
+    
+    if st.session_state.optim_data is not None:
+        st.markdown("### 📊 Aperçu des Données de Process")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        avg_recup = st.session_state.optim_data['Recup_%'].mean()
+        max_recup = st.session_state.optim_data['Recup_%'].max()
+        avg_cout = st.session_state.optim_data['Cout_$/t'].mean()
+        min_cout = st.session_state.optim_data['Cout_$/t'].min()
+        
+        col1.metric("Récup. Moy.", f"{avg_recup:.1f}%")
+        col2.metric("Récup. Max.", f"{max_recup:.1f}%")
+        col3.metric("Coût Moy.", f"{avg_cout:.1f} $/t")
+        col4.metric("Coût Min.", f"{min_cout:.1f} $/t")
+        
+        st.dataframe(st.session_state.optim_data.head(10), use_container_width=True)
+        
+        csv = download_data(st.session_state.optim_data, "optimisation_process.csv")
+        st.download_button(
+            label="📥 Télécharger CSV",
+            data=csv,
+            file_name="optimisation_process.csv",
+            mime="text/csv",
+            key="download_optim"
+        )
+        
+        fig = px.scatter(
+            st.session_state.optim_data,
+            x='Cout_$/t',
+            y='Recup_%',
+            color='pH',
+            title="Trade-off Récupération vs Coût",
+            labels={'Cout_$/t': 'Coût ($/t)', 'Recup_%': 'Récupération (%)'}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    if st.session_state.optim_data is not None:
+        st.markdown('<div class="step-header">⚙️ Étape 2: Modèle Prédictif de Récupération</div>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            optim_algo = st.selectbox(
+                "Algorithme",
+                ["Random Forest", "Gradient Boosting"],
+                key="optim_algo"
+            )
+        
+        with col2:
+            st.markdown("### Paramètres du Modèle")
+            
+            if optim_algo == "Random Forest":
+                n_est_opt = st.number_input("n_estimators", 50, 500, 150, 50, key="opt_rf_n")
+                max_d_opt = st.number_input("max_depth", 5, 30, 10, key="opt_rf_d")
+            else:
+                n_est_opt = st.number_input("n_estimators", 50, 500, 200, 50, key="opt_gb_n")
+                lr_opt = st.number_input("learning_rate", 0.01, 0.5, 0.1, 0.01, key="opt_gb_lr")
+        
+        if st.button("▶ Entraîner Modèle Prédictif", key="train_optim"):
+            with st.spinner("⏳ Entraînement en cours..."):
+                df = st.session_state.optim_data
+                
+                X = df[['pH', 'Temps_h', 'Cyanure_ppm', 'Temperature_C', 'Granulo_P80_um']]
+                y = df['Recup_%']
+                
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                
+                if optim_algo == "Random Forest":
+                    model = RandomForestRegressor(n_estimators=n_est_opt, max_depth=max_d_opt, random_state=42)
+                else:
+                    model = GradientBoostingRegressor(n_estimators=n_est_opt, learning_rate=lr_opt, random_state=42)
+                
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_test)
+                
+                r2 = r2_score(y_test, y_pred)
+                mae = mean_absolute_error(y_test, y_pred)
+                
+                col1, col2 = st.columns(2)
+                col1.metric("R² Score", f"{r2:.3f}")
+                col2.metric("MAE", f"{mae:.2f}%")
+                
+                st.session_state['optim_model'] = model
+                st.success("✅ Modèle entraîné avec succès!")
+        
+        if 'optim_model' in st.session_state:
+            st.markdown('<div class="step-header">🎯 Étape 3: Optimisation des Paramètres</div>', unsafe_allow_html=True)
+            
+            st.markdown("### Stratégie d'Optimisation")
+            
+            objectif = st.radio(
+                "Objectif principal",
+                ["Maximiser Récupération", "Minimiser Coût", "Équilibre Récup/Coût"],
+                key="objectif_optim"
+            )
+            
+            if st.button("🚀 Lancer Optimisation", key="launch_optim"):
+                with st.spinner("⏳ Optimisation en cours..."):
+                    model = st.session_state['optim_model']
+                    
+                    def objective_function(params):
+                        pH, temps, cyanure, temp, granulo = params
+                        
+                        X_pred = np.array([[pH, temps, cyanure, temp, granulo]])
+                        recup_pred = model.predict(X_pred)[0]
+                        
+                        cout_pred = (
+                            50 +
+                            (cyanure / 10) +
+                            (temps * 2) +
+                            (temp - 20) * 3
+                        )
+                        
+                        if objectif == "Maximiser Récupération":
+                            return -recup_pred
+                        elif objectif == "Minimiser Coût":
+                            return cout_pred
+                        else:
+                            return -recup_pred * 0.6 + cout_pred * 0.4
+                    
+                    bounds = [
+                        (10.0, 12.5),
+                        (12, 48),
+                        (200, 800),
+                        (20, 35),
+                        (50, 150)
+                    ]
+                    
+                    x0 = [11.0, 24, 400, 25, 75]
+                    
+                    result = minimize(
+                        objective_function,
+                        x0,
+                        method='L-BFGS-B',
+                        bounds=bounds
+                    )
+                    
+                    optimal_params = result.x
+                    pH_opt, temps_opt, cyan_opt, temp_opt, gran_opt = optimal_params
+                    
+                    X_opt = np.array([[pH_opt, temps_opt, cyan_opt, temp_opt, gran_opt]])
+                    recup_opt = model.predict(X_opt)[0]
+                    
+                    cout_opt = (
+                        50 +
+                        (cyan_opt / 10) +
+                        (temps_opt * 2) +
+                        (temp_opt - 20) * 3
+                    )
+                    
+                    st.markdown("### 🎯 Paramètres Optimaux")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown("""
+                        **Paramètres Process:**
+                        - pH: **{:.2f}**
+                        - Temps: **{:.1f} h**
+                        """.format(pH_opt, temps_opt))
+                    
+                    with col2:
+                        st.markdown("""
+                        **Réactifs & Conditions:**
+                        - Cyanure: **{:.0f} ppm**
+                        - Température: **{:.1f} °C**
+                        """.format(cyan_opt, temp_opt))
+                    
+                    with col3:
+                        st.markdown("""
+                        **Granulométrie:**
+                        - P80: **{:.0f} μm**
+                        """.format(gran_opt))
+                    
+                    st.markdown("### 📊 Performances Attendues")
+                    
+                    col1, col2 = st.columns(2)
+                    col1.metric("Récupération Optimale", f"{recup_opt:.2f}%", "Prédiction modèle")
+                    col2.metric("Coût Estimé", f"{cout_opt:.2f} $/t", "Calcul direct")
+                    
+                    st.markdown(f"""
+                    <div class="success-box">
+                        <strong>💡 Recommandations:</strong><br>
+                        • pH optimal à {pH_opt:.2f} pour maximiser dissolution Au<br>
+                        • Temps de {temps_opt:.1f}h équilibre recup/coût<br>
+                        • Dose cyanure à {cyan_opt:.0f} ppm évite surconsommation<br>
+                        • Récupération attendue: {recup_opt:.1f}% avec coût de {cout_opt:.1f} $/t
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    fig = go.Figure()
+                    
+                    fig.add_trace(go.Bar(
+                        x=['pH', 'Temps (h/10)', 'CN (ppm/100)', 'Temp (°C)', 'P80 (μm/10)'],
+                        y=[pH_opt, temps_opt/10, cyan_opt/100, temp_opt, gran_opt/10],
+                        marker_color='#8b5cf6'
+                    ))
+                    
+                    fig.update_layout(
+                        title="Paramètres Optimaux (normalisés)",
+                        yaxis_title="Valeur",
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
 
-# ======================= ONGLET 4: MAINTENANCE (CODE RACCOURCI) ======================= #
+# ======================= ONGLET 4: MAINTENANCE ======================= #
 with tab4:
     st.markdown("## Maintenance Prédictive des Équipements")
-    st.info("🚧 Fonctionnalité complète disponible dans la version locale")
+    
+    st.markdown("""
+    <div class="info-box">
+        <strong>🎯 Objectif:</strong><br>
+        Prédire les pannes d'équipements (broyeurs, pompes) à partir de données de capteurs 
+        (vibrations, température, pression) pour planifier la maintenance et éviter les arrêts imprévus.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="step-header">📊 Étape 1: Génération des Données de Capteurs</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("### Paramètres de Génération")
+        maint_samples = st.slider("Nombre de mesures", 500, 5000, 2000, 100, key="maint_samples")
+        maint_failure_rate = st.slider("Taux de pannes (%)", 5, 30, 15, 5, key="maint_failure")
+        
+        if st.button("🎲 Générer les Données", key="gen_maint"):
+            n_failures = int(maint_samples * maint_failure_rate / 100)
+            n_normal = maint_samples - n_failures
+            
+            data = []
+            
+            # Équipements normaux
+            for i in range(n_normal):
+                vibration = 1.0 + np.random.random() * 3.0
+                temperature = 40 + np.random.random() * 30
+                pression = 2.0 + np.random.random() * 2.0
+                courant = 15 + np.random.random() * 10
+                hours_operation = np.random.random() * 8000
+                
+                data.append({
+                    'Vibration_mm_s': round(vibration, 2),
+                    'Temperature_C': round(temperature, 1),
+                    'Pression_bar': round(pression, 2),
+                    'Courant_A': round(courant, 1),
+                    'Heures_operation': round(hours_operation, 0),
+                    'Panne': 'Non'
+                })
+            
+            # Équipements en panne
+            for i in range(n_failures):
+                vibration = 4.5 + np.random.random() * 4.0
+                temperature = 65 + np.random.random() * 30
+                pression = 1.0 + np.random.random() * 1.5
+                courant = 25 + np.random.random() * 15
+                hours_operation = 5000 + np.random.random() * 5000
+                
+                data.append({
+                    'Vibration_mm_s': round(vibration, 2),
+                    'Temperature_C': round(temperature, 1),
+                    'Pression_bar': round(pression, 2),
+                    'Courant_A': round(courant, 1),
+                    'Heures_operation': round(hours_operation, 0),
+                    'Panne': 'Oui'
+                })
+            
+            df = pd.DataFrame(data)
+            df = df.sample(frac=1).reset_index(drop=True)
+            st.session_state.maint_data = df
+            st.success(f"✅ {maint_samples} mesures générées avec succès!")
+    
+    with col2:
+        st.markdown("### Variables de Surveillance")
+        st.markdown("""
+        **Capteurs utilisés:**
+        - 🔹 **Vibration (mm/s)** - Détection déséquilibre/usure
+        - 🔹 **Température (°C)** - Surchauffe roulements
+        - 🔹 **Pression (bar)** - Anomalies circuit hydraulique
+        - 🔹 **Courant (A)** - Surcharge moteur
+        - 🔹 **Heures opération** - Usure cumulative
+        
+        **Seuils d'alerte:**
+        - ⚠️ Vibration > 4 mm/s
+        - ⚠️ Température > 65°C
+        - ⚠️ Pression < 1.5 bar
+        """)
+    
+    if st.session_state.maint_data is not None:
+        st.markdown("### 📊 Aperçu des Données de Capteurs")
+        
+        col1, col2, col3 = st.columns(3)
+        total = len(st.session_state.maint_data)
+        pannes = len(st.session_state.maint_data[st.session_state.maint_data['Panne'] == 'Oui'])
+        normal = total - pannes
+        
+        col1.metric("Total Mesures", total)
+        col2.metric("Pannes", pannes, f"{pannes/total*100:.1f}%")
+        col3.metric("Normaux", normal, f"{normal/total*100:.1f}%")
+        
+        st.dataframe(st.session_state.maint_data.head(10), use_container_width=True)
+        
+        csv = download_data(st.session_state.maint_data, "maintenance_predictive.csv")
+        st.download_button(
+            label="📥 Télécharger CSV",
+            data=csv,
+            file_name="maintenance_predictive.csv",
+            mime="text/csv",
+            key="download_maint"
+        )
+        
+        fig = px.box(
+            st.session_state.maint_data,
+            x='Panne',
+            y='Vibration_mm_s',
+            title="Distribution Vibrations par Statut",
+            color='Panne',
+            color_discrete_map={'Oui': '#ef4444', 'Non': '#10b981'}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    if st.session_state.maint_data is not None:
+        st.markdown('<div class="step-header">⚙️ Étape 2: Modèle de Prédiction de Pannes</div>', unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            maint_algo = st.selectbox(
+                "Algorithme",
+                ["Random Forest", "XGBoost"],
+                key="maint_algo"
+            )
+        
+        with col2:
+            st.markdown("### Paramètres du Modèle")
+            
+            if maint_algo == "Random Forest":
+                n_est_maint = st.number_input("n_estimators", 50, 500, 200, 50, key="maint_rf_n")
+                max_d_maint = st.number_input("max_depth", 5, 30, 12, key="maint_rf_d")
+            else:
+                n_est_maint = st.number_input("n_estimators", 50, 500, 150, 50, key="maint_xgb_n")
+                lr_maint = st.number_input("learning_rate", 0.01, 0.5, 0.1, 0.01, key="maint_xgb_lr")
+        
+        if st.button("▶ Entraîner Modèle Prédictif", key="train_maint"):
+            with st.spinner("⏳ Entraînement en cours..."):
+                df = st.session_state.maint_data
+                
+                X = df.drop('Panne', axis=1)
+                y = df['Panne'].map({'Oui': 1, 'Non': 0})
+                
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, stratify=y, random_state=42
+                )
+                
+                if maint_algo == "Random Forest":
+                    model = RandomForestClassifier(
+                        n_estimators=n_est_maint,
+                        max_depth=max_d_maint,
+                        class_weight='balanced',
+                        random_state=42
+                    )
+                else:
+                    from xgboost import XGBClassifier
+                    model = XGBClassifier(
+                        n_estimators=n_est_maint,
+                        learning_rate=lr_maint,
+                        random_state=42
+                    )
+                
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_test)
+                
+                accuracy = accuracy_score(y_test, y_pred)
+                precision = precision_score(y_test, y_pred, zero_division=0)
+                recall = recall_score(y_test, y_pred, zero_division=0)
+                f1 = f1_score(y_test, y_pred, zero_division=0)
+                cm = confusion_matrix(y_test, y_pred)
+                
+                st.markdown("### 🎯 Performance du Modèle")
+                
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Accuracy", f"{accuracy:.3f}", f"{accuracy*100:.1f}%")
+                col2.metric("Precision", f"{precision:.3f}", "Fiabilité alertes")
+                col3.metric("Recall", f"{recall:.3f}", "Détection pannes")
+                col4.metric("F1-Score", f"{f1:.3f}")
+                
+                st.markdown("### 📊 Matrice de Confusion")
+                
+                fig = go.Figure(data=go.Heatmap(
+                    z=cm,
+                    x=['Normal', 'Panne'],
+                    y=['Normal', 'Panne'],
+                    text=cm,
+                    texttemplate="%{text}",
+                    textfont={"size": 20},
+                    colorscale='Reds'
+                ))
+                fig.update_layout(
+                    title="Prédictions de Maintenance",
+                    xaxis_title="Prédiction",
+                    yaxis_title="Réalité",
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.markdown(f"""
+                <div class="success-box">
+                    <strong>💡 Impact Business:</strong><br>
+                    • <strong>Recall = {recall*100:.1f}%:</strong> Détecte {recall*100:.1f}% des pannes avant qu'elles surviennent<br>
+                    • <strong>Precision = {precision*100:.1f}%:</strong> {precision*100:.1f}% des alertes sont justifiées<br>
+                    • <strong>Économies estimées:</strong> Réduction arrêts imprévus de 60-80%<br>
+                    • <strong>ROI:</strong> Planification maintenance = -40% coûts réparations
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown("### 📊 Importance des Variables")
+                
+                feature_importance = pd.DataFrame({
+                    'Capteur': X.columns,
+                    'Importance': model.feature_importances_
+                }).sort_values('Importance', ascending=True)
+                
+                fig = px.bar(
+                    feature_importance,
+                    x='Importance',
+                    y='Capteur',
+                    orientation='h',
+                    title="Capteurs les Plus Prédictifs",
+                    color='Importance',
+                    color_continuous_scale='Reds'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.markdown('<div class="step-header">🔍 Simulation de Diagnostic en Temps Réel</div>', unsafe_allow_html=True)
+                
+                st.markdown("### Entrez les Valeurs des Capteurs")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    vib_sim = st.number_input("Vibration (mm/s)", 0.0, 10.0, 2.5, 0.1, key="vib_sim")
+                    temp_sim = st.number_input("Température (°C)", 20.0, 100.0, 50.0, 1.0, key="temp_sim")
+                
+                with col2:
+                    press_sim = st.number_input("Pression (bar)", 0.0, 5.0, 2.5, 0.1, key="press_sim")
+                    curr_sim = st.number_input("Courant (A)", 0.0, 50.0, 20.0, 1.0, key="curr_sim")
+                
+                with col3:
+                    hours_sim = st.number_input("Heures opération", 0, 10000, 4000, 100, key="hours_sim")
+                
+                if st.button("🔍 Diagnostiquer", key="diagnose"):
+                    X_sim = np.array([[vib_sim, temp_sim, press_sim, curr_sim, hours_sim]])
+                    pred = model.predict(X_sim)[0]
+                    proba = model.predict_proba(X_sim)[0]
+                    
+                    if pred == 1:
+                        st.markdown(f"""
+                        <div style="background: #fee2e2; border-left: 4px solid #ef4444; padding: 1.5rem; border-radius: 0.5rem;">
+                            <h3 style="color: #991b1b; margin: 0;">⚠️ ALERTE PANNE IMMINENTE</h3>
+                            <p style="font-size: 1.2rem; margin: 0.5rem 0;">Probabilité de panne: <strong>{proba[1]*100:.1f}%</strong></p>
+                            <p style="margin: 0.5rem 0;"><strong>Action recommandée:</strong> Planifier maintenance préventive dans les 24-48h</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="background: #d1fae5; border-left: 4px solid #10b981; padding: 1.5rem; border-radius: 0.5rem;">
+                            <h3 style="color: #065f46; margin: 0;">✅ ÉQUIPEMENT NORMAL</h3>
+                            <p style="font-size: 1.2rem; margin: 0.5rem 0;">Probabilité état normal: <strong>{proba[0]*100:.1f}%</strong></p>
+                            <p style="margin: 0.5rem 0;"><strong>Action:</strong> Continuer surveillance régulière</p>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("""
